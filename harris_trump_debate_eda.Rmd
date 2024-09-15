@@ -1,0 +1,128 @@
+---
+title: "harris_trump_debate"
+author: "Brian Seko"
+date: "2024-09-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytext)
+library(wordcloud)
+library(quanteda)
+library(quanteda.textstats)
+library(textdata)
+
+data(stop_words)
+```
+
+# Word Counts
+
+```{r trump word counts}
+trump_speech <- read_file("assets/trump.txt")
+trump_speech_df <- data_frame(line=1, text=trump_speech)
+
+trump_tidy_speech <- trump_speech_df %>%
+  unnest_tokens(word, text)
+
+trump_word_count_with_stop <- trump_tidy_speech %>% count(word, sort = TRUE)
+
+ggplot(data=trump_word_count_with_stop %>% head(10)) +
+  geom_bar(aes(x=reorder(word, desc(n)), y=n), stat="identity")
+```
+
+```{r}
+trump_word_count_with_stop %>% select(n) %>% sum()
+```
+
+```{r}
+trump_word_count_no_stop <- trump_tidy_speech %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+
+trump_word_count_no_stop %>% select(n) %>% sum()
+```
+
+```{r}
+ggplot(data=trump_word_count_no_stop %>% head(20)) +
+  geom_bar(aes(y=reorder(word, n), x=n), stat="identity")
+```
+
+# Harris word counts
+
+```{r}
+harris_speech <- read_file("assets/harris.txt")
+harris_speech_df <- data_frame(line=1, text=harris_speech)
+
+harris_tidy_speech <- harris_speech_df %>%
+  unnest_tokens(word, text)
+
+harris_word_count_with_stop <- harris_tidy_speech %>% count(word, sort = TRUE)
+
+ggplot(data=harris_word_count_with_stop %>% head(10)) +
+  geom_bar(aes(x=reorder(word, desc(n)), y=n), stat="identity")
+```
+```{r}
+harris_word_count_with_stop %>% select(n) %>% sum()
+```
+```{r}
+total_words_compare <- tibble(
+  speaker=c("Trump", "Harris"),
+  total_words=c(trump_word_count_with_stop %>% select(n) %>% sum(),
+  harris_word_count_with_stop %>% select(n) %>% sum())
+)
+```
+
+```{r}
+ggplot(data=total_words_compare)+
+  geom_bar(aes(x=speaker, y=total_words, fill=speaker), stat="identity")+
+  scale_fill_manual(values=c("lightgreen", "#56B4E9"))
+```
+```{r}
+harris_word_count_no_stop <- harris_tidy_speech %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+
+harris_word_count_no_stop %>% select(n) %>% sum()
+
+ggplot(data=harris_word_count_no_stop %>% head(20)) +
+  geom_bar(aes(y=reorder(word, n), x=n), stat="identity")
+```
+```{r}
+trump_sentiment_speech <- trump_tidy_speech %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(speaker="Trump")
+
+harris_sentiment_speech <- harris_tidy_speech %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(speaker="Harris")
+
+sentiment_analysis <- rbind(trump_sentiment_speech, harris_sentiment_speech)
+
+ggplot(data=sentiment_analysis)+
+  geom_bar(aes(x=n, y=speaker, group=sentiment, fill=sentiment), stat='identity', position='dodge')+
+  scale_fill_manual(values=c("red", "blue"))
+
+```
+
+```{r}
+trump_afinn_sentiment <- trump_tidy_speech %>%
+  inner_join(get_sentiments("afinn")) %>%
+  summarise(sentiment_score = sum(value)) %>% 
+  mutate(speaker="Trump")
+
+harris_afinn_sentiment <- harris_tidy_speech %>%
+  inner_join(get_sentiments("afinn")) %>%
+  summarise(sentiment_score = sum(value)) %>% 
+  mutate(speaker="Harris")
+
+sentiment_afinn <- rbind(trump_afinn_sentiment, harris_afinn_sentiment)
+
+ggplot(data=sentiment_afinn)+
+  geom_bar(aes(x=sentiment_score, y=speaker, fill=speaker), stat='identity')+
+  scale_fill_manual(values=c("blue", "red"))
+```
+
+
