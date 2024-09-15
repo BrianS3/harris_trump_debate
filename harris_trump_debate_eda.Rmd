@@ -5,22 +5,32 @@ date: "2024-09-15"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, echo=FALSE}
+
+# knitr::opts_chunk$set(include=FALSE, echo=FALSE)
+
 library(tidyverse)
 library(tidytext)
 library(wordcloud)
 library(quanteda)
 library(quanteda.textstats)
 library(textdata)
+library(flextable)
 
 data(stop_words)
 ```
 
+# Objective
+
+Using NLP techniques what can we learn about the debate between Trump and Harris?
+
 # Word Counts
 
-```{r trump word counts}
+First, we will review the most spoken words reviewing both the raw text, and the cleaned text which removes stop words (the, and, if, etc.)
+
+```{r trump word counts, echo=FALSE}
 trump_speech <- read_file("assets/trump.txt")
-trump_speech_df <- data_frame(line=1, text=trump_speech)
+trump_speech_df <- tibble(line=1, text=trump_speech)
 
 trump_tidy_speech <- trump_speech_df %>%
   unnest_tokens(word, text)
@@ -28,31 +38,25 @@ trump_tidy_speech <- trump_speech_df %>%
 trump_word_count_with_stop <- trump_tidy_speech %>% count(word, sort = TRUE)
 
 ggplot(data=trump_word_count_with_stop %>% head(10)) +
-  geom_bar(aes(x=reorder(word, desc(n)), y=n), stat="identity")
+  geom_bar(aes(y=reorder(word, n), x=n), fill="#56B4E9", stat="identity")+
+  theme_minimal()+
+  labs(x="Count", y="Raw Words", title="Raw Word Count: Trump")
 ```
-
-```{r}
-trump_word_count_with_stop %>% select(n) %>% sum()
-```
-
 ```{r}
 trump_word_count_no_stop <- trump_tidy_speech %>%
   anti_join(stop_words) %>%
-  count(word, sort = TRUE)
+  count(word, sort = TRUE) %>% 
+  filter(!grepl("^\\d+$", word), !grepl(",", word))
 
-trump_word_count_no_stop %>% select(n) %>% sum()
-```
-
-```{r}
 ggplot(data=trump_word_count_no_stop %>% head(20)) +
-  geom_bar(aes(y=reorder(word, n), x=n), stat="identity")
+  geom_bar(aes(y=reorder(word, n), x=n), fill="#56B4E9", stat="identity")+
+  theme_minimal() +
+  labs(y="Cleaned Words", x="Count", title="Cleaned Word Count: Trump")
 ```
-
-# Harris word counts
 
 ```{r}
 harris_speech <- read_file("assets/harris.txt")
-harris_speech_df <- data_frame(line=1, text=harris_speech)
+harris_speech_df <- tibble(line=1, text=harris_speech)
 
 harris_tidy_speech <- harris_speech_df %>%
   unnest_tokens(word, text)
@@ -60,11 +64,15 @@ harris_tidy_speech <- harris_speech_df %>%
 harris_word_count_with_stop <- harris_tidy_speech %>% count(word, sort = TRUE)
 
 ggplot(data=harris_word_count_with_stop %>% head(10)) +
-  geom_bar(aes(x=reorder(word, desc(n)), y=n), stat="identity")
+  geom_bar(aes(y=reorder(word, n), x=n), fill = "lightgreen", stat="identity")+
+  theme_minimal()+
+  labs(x="Count", y="Raw Words", title="Raw Word Count: Harris")
 ```
+
 ```{r}
 harris_word_count_with_stop %>% select(n) %>% sum()
 ```
+
 ```{r}
 total_words_compare <- tibble(
   speaker=c("Trump", "Harris"),
@@ -73,15 +81,35 @@ total_words_compare <- tibble(
 )
 ```
 
+## Check P value of difference!!
+
+
 ```{r}
 ggplot(data=total_words_compare)+
   geom_bar(aes(x=speaker, y=total_words, fill=speaker), stat="identity")+
-  scale_fill_manual(values=c("lightgreen", "#56B4E9"))
+  scale_fill_manual(values=c("lightgreen", "#56B4E9"))+
+  labs(title="Total Word Count")
 ```
+
+```{r}
+unique_words_compare <- tibble(
+  speaker=c("Trump", "Harris"),
+  total_words=c(trump_word_count_with_stop %>% nrow(),
+  harris_word_count_with_stop %>% nrow())
+)
+
+ggplot(data=unique_words_compare)+
+  geom_bar(aes(x=speaker, y=total_words, fill=speaker), stat="identity")+
+  scale_fill_manual(values=c("lightgreen", "#56B4E9")) +
+  labs(title="Unique Word Count")
+```
+
+
 ```{r}
 harris_word_count_no_stop <- harris_tidy_speech %>%
   anti_join(stop_words) %>%
-  count(word, sort = TRUE)
+  count(word, sort = TRUE) %>% 
+  filter(!grepl("^\\d+$", word))
 
 harris_word_count_no_stop %>% select(n) %>% sum()
 
@@ -125,4 +153,75 @@ ggplot(data=sentiment_afinn)+
   scale_fill_manual(values=c("blue", "red"))
 ```
 
+```{r}
+wordcloud(words = trump_word_count_no_stop$word, 
+          freq = trump_word_count_no_stop$n, 
+          max.words = 100)
+```
+
+```{r}
+wordcloud(words = harris_word_count_no_stop$word, 
+          freq = harris_word_count_no_stop$n, 
+          max.words = 100)
+```
+
+```{r}
+trump_speech_no_stop <- trump_tidy_speech %>%
+  anti_join(stop_words) %>% 
+  filter(!grepl("^\\d+$", word), !grepl(",", word)) %>% 
+  select(word) %>% 
+  paste(., collapse="")
+
+tibble(line=1, text=trump_speech_no_stop) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  count(bigram, sort = TRUE) %>% 
+  mutate(frequency = n/sum(n))
+```
+
+
+```{r}
+harris_speech_no_stop <- harris_tidy_speech %>%
+  anti_join(stop_words) %>% 
+  filter(!grepl("^\\d+$", word), !grepl(",", word)) %>% 
+  select(word) %>% 
+  paste(., collapse="")
+
+tibble(line=1, text=harris_speech_no_stop) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  count(bigram, sort = TRUE) %>% 
+  mutate(frequency = n/sum(n))
+```
+
+```{r}
+tibble(line=1, text=trump_speech_no_stop) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 3) %>%
+  count(bigram, sort = TRUE) %>% 
+  mutate(frequency = n/sum(n))
+```
+
+```{r}
+tibble(line=1, text=harris_speech_no_stop) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 3) %>%
+  count(bigram, sort = TRUE) %>% 
+  mutate(frequency = n/sum(n))
+```
+# Reading Level
+
+Flesch-Kincaid is more focused on sentence length and word length (syllables per word), and it tends to favor readability for a broader range of texts, especially shorter sentences and simpler words.
+SMOG emphasizes the number of complex words (words with 3+ syllables) and is commonly used for texts with more dense vocabulary, like healthcare or legal documents.
+
+```{r}
+trump_corpus_speech <- corpus(trump_speech)
+harris_corpus_speech <- corpus(harris_speech)
+
+trump_readability_scores <- textstat_readability(trump_corpus_speech, measure = c("Flesch.Kincaid", "SMOG")) %>% 
+  transmute(Document="Trump", Flesch.Kincaid, SMOG)
+
+harris_readability_scores <- textstat_readability(harris_corpus_speech, measure = c("Flesch.Kincaid", "SMOG")) %>% 
+  transmute(Document="Harris", Flesch.Kincaid, SMOG)
+
+readability_scores <- rbind(trump_readability_scores, harris_readability_scores)
+
+flextable(readability_scores)
+```
 
