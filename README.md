@@ -1,5 +1,7 @@
 # Harris/Trump Debate Analysis
 
+Rpubs: https://rpubs.com/bseko/harris_trump_debate
+
 ## Overview
 
 This project is focused on analyzing speeches through various Natural Language Processing (NLP) techniques using R. The main goal is to extract insights from speeches, such as readability, word patterns (n-grams), and sentiment, in order to understand the language used, complexity, and tone of the content.
