@@ -1,5 +1,5 @@
 ---
-title: "harris_trump_debate"
+title: "Analyzing the Harris/Trump Debate with NLP"
 author: "Brian Seko"
 date: "2024-09-15"
 output: html_document
@@ -7,7 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE, echo=FALSE}
 
-# knitr::opts_chunk$set(include=FALSE, echo=FALSE)
+knitr::opts_chunk$set(warning = FALSE)
 
 library(tidyverse)
 library(tidytext)
@@ -70,42 +70,6 @@ ggplot(data=harris_word_count_with_stop %>% head(10)) +
 ```
 
 ```{r}
-harris_word_count_with_stop %>% select(n) %>% sum()
-```
-
-```{r}
-total_words_compare <- tibble(
-  speaker=c("Trump", "Harris"),
-  total_words=c(trump_word_count_with_stop %>% select(n) %>% sum(),
-  harris_word_count_with_stop %>% select(n) %>% sum())
-)
-```
-
-## Check P value of difference!!
-
-
-```{r}
-ggplot(data=total_words_compare)+
-  geom_bar(aes(x=speaker, y=total_words, fill=speaker), stat="identity")+
-  scale_fill_manual(values=c("lightgreen", "#56B4E9"))+
-  labs(title="Total Word Count")
-```
-
-```{r}
-unique_words_compare <- tibble(
-  speaker=c("Trump", "Harris"),
-  total_words=c(trump_word_count_with_stop %>% nrow(),
-  harris_word_count_with_stop %>% nrow())
-)
-
-ggplot(data=unique_words_compare)+
-  geom_bar(aes(x=speaker, y=total_words, fill=speaker), stat="identity")+
-  scale_fill_manual(values=c("lightgreen", "#56B4E9")) +
-  labs(title="Unique Word Count")
-```
-
-
-```{r}
 harris_word_count_no_stop <- harris_tidy_speech %>%
   anti_join(stop_words) %>%
   count(word, sort = TRUE) %>% 
@@ -114,16 +78,139 @@ harris_word_count_no_stop <- harris_tidy_speech %>%
 harris_word_count_no_stop %>% select(n) %>% sum()
 
 ggplot(data=harris_word_count_no_stop %>% head(20)) +
-  geom_bar(aes(y=reorder(word, n), x=n), stat="identity")
+  geom_bar(aes(y=reorder(word, n), x=n), fill="lightgreen", stat="identity")+
+  theme_minimal()+
+  labs(y="Cleaned Words", x="Count", title="Cleaned Word Count: Harris")
+  
+```
+The top words from each candidate's cleaned word counts provide insight into the themes and focal points of their speeches:
+
+### Trump's Top Words:
+- **People** and **country** are the most frequent, suggesting a focus on populist themes, likely appealing to a broad audience by emphasizing national unity and citizens.
+- **President**, **world**, **vote**, and **plan** suggest Trump is speaking about leadership, international topics, and action plans, possibly addressing his achievements or future goals.
+- Words like **war**, **millions**, **border**, and **billions** could imply discussions about national security, immigration, and economic matters.
+
+This shows Trump’s speech focused on grand themes of leadership, the people, and international/national concerns, with an emphasis on scale (millions, billions).
+
+### Harris' Top Words:
+- **President** and **people** are also prominent, indicating her focus on leadership and addressing the populace, which is typical in political discourse.
+- The inclusion of **Trump** and **Donald** indicates a significant part of her speech was dedicated to discussing the former president, likely in a critical or comparative context.
+- Words like **plan**, **understand**, **care**, and **time** suggest Harris is focused on empathy, detailed planning, and social issues, such as healthcare or governance.
+- Words like **American**, **united**, and **country** suggest a focus on national identity and unity, but more subtly compared to Trump.
+
+Harris' top words indicate a focus on leadership, social issues, and perhaps a critique or contrast of Trump, while maintaining a tone of unity and care.
+
+### Comparison:
+- Both candidates emphasize **president**, **people**, and the **country**, which are key themes in any political speech.
+- Trump focuses more on large-scale issues, money, and security, while Harris seems to balance leadership with a focus on empathy, understanding, and social issues.
+
+This word frequency highlights how both candidates shaped their messages around leadership but approached their audiences from different thematic perspectives.
+
+## Comparing Total Words Spoken
+
+```{r}
+total_words_compare <- tibble(
+  speaker=c("Trump", "Harris"),
+  total_words=c(trump_word_count_with_stop %>% select(n) %>% sum(),
+  harris_word_count_with_stop %>% select(n) %>% sum())
+)
+
+observed <- c(8118, 5950)
+chisq_test <- chisq.test(observed)
+
+chi_squared_results <- data.frame(
+  Statistic = chisq_test$statistic,
+  P_Value = formatC(chisq_test$p.value, format = "e", digits = 3),
+  Degrees_of_Freedom = chisq_test$parameter
+)
+stargazer::stargazer(chi_squared_results, summary = FALSE, type = "text", digits = 3)
+```
+
+The result of the chi-squared test indicates a very significant difference between the word counts of Trump and Harris. Here’s how to interpret the output:
+
+X-squared = 334.11: This is the test statistic. A large value like this indicates that the observed counts (8118 for Trump, 5950 for Harris) deviate significantly from what would be expected under the null hypothesis (which usually assumes equal counts or some expected distribution).
+
+df = 1: Degrees of freedom, which in this case is 1 because you're comparing two categories (Trump vs. Harris).
+
+p-value < 2.2e-16: The p-value is extremely small, much smaller than any common significance level (like 0.05 or 0.01), meaning that the difference in word counts is statistically significant.
+
+This result strongly suggests that the difference in the total number of words spoken by Trump and Harris is not due to random chance. If you were testing the hypothesis that both speakers would have spoken roughly the same number of words, you would reject that hypothesis based on this p-value.
+
+
+```{r}
+difference <- 8118-5950
+P_Value <- formatC(chisq_test$p.value, format = "e", digits = 3)
+
+ggplot(data=total_words_compare)+
+  geom_bar(aes(x=speaker, y=total_words, fill=speaker), stat="identity")+
+  geom_text(aes(x="Harris", y=7500, label=paste("Difference: =",difference)))+
+  geom_text(aes(x="Harris", y=7000, label=paste("Chi Sqr P-Value: ",P_Value)))+
+  scale_fill_manual(values=c("lightgreen", "#56B4E9"))+
+  labs(title="Total Word Count")+
+  theme_minimal()+
+  labs(x="Speaker", y="Total Word Count", title="Total Count of Spoken Words: Trump vs Harris", fill="")
+```
+
+Observation: Trump has been called one of the slowest speaker of all recent U.S. presidents [Article](https://newrepublic.com/article/146864/trump-slowest-speaker-recent-us-presidents), during the debate Trump spoke for approximately 42 minutes and 52 seconds, while Harris spoke for 37 minutes and 36 seconds.[Article](https://www.northjersey.com/story/news/politics/elections/2024/09/11/kamala-harris-and-trump-debate-time/75143033007/).
+
+As a general rule, a 5-minute speech is roughly 750 words, which is 150 words per minute. This means that Trump spoke at approximately 188 words per minute and Harris spoke at 165 words per minute.Neither of these amounts are statistically faster than the noted average, however, it is interesting because it suggests both speakers delivered their messages with a higher intensity and density of information. This can be a reflection of different speaking styles—Trump may have used shorter, more direct sentences, while Harris might have taken a slightly more measured approach. These differences in speaking pace, while not extreme, could have had subtle impacts on the audience’s perception and retention of the content, affecting how their messages were received.
+
+
+
+```{r}
+unique_words_compare <- tibble(
+  speaker=c("Trump", "Harris"),
+  total_words=c(trump_word_count_with_stop %>% nrow(),
+  harris_word_count_with_stop %>% nrow())
+)
+
+observed <- c(1221, 1257)
+chisq_test <- chisq.test(observed)
+
+chi_squared_results <- data.frame(
+  Statistic = chisq_test$statistic,
+  P_Value = formatC(chisq_test$p.value, format = "e", digits = 3),
+  Degrees_of_Freedom = chisq_test$parameter
+)
+stargazer::stargazer(chi_squared_results, summary = FALSE, type = "text", digits = 3)
 ```
 ```{r}
+P_Value <-  formatC(chisq_test$p.value, format = "e", digits = 3)
+
+ggplot(data=unique_words_compare)+
+  geom_bar(aes(x=speaker, y=total_words, fill=speaker), stat="identity")+
+  geom_text(aes(x="Trump", y=1400, label=paste("Difference: =",difference)))+
+  geom_text(aes(x="Trump", y=1300, label=paste("Chi Sqr P-Value: ",P_Value)))+
+  scale_fill_manual(values=c("lightgreen", "#56B4E9")) +
+  labs(title="Unique Word Count: Harris vs Trump")+
+  theme_minimal()+
+    theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  )+
+  labs(x="Speaker", y="Total Unique Words Spoken", fill="")
+```
+
+The test results show the following:
+
+- **X-squared = 0.523**: This is a relatively small test statistic, suggesting that the observed differences in the unique word counts between Harris (1257) and Trump (1221) are not large enough to indicate a strong difference.
+- **P-value = 0.4696**: The p-value is greater than 0.05, meaning the difference in unique word counts between Harris and Trump is **not statistically significant**. This suggests that, in terms of unique word usage, there is no strong evidence that either candidate used significantly more unique words than the other.
+- **Degrees of freedom = 1**: This corresponds to the fact that we are comparing two groups.
+
+### What could this mean?
+
+Despite Harris having a slightly higher unique word count (1257 vs. 1221 for Trump), the chi-squared test indicates that this difference could be due to random chance rather than a meaningful variation. Both speakers employed a similar range of unique words, implying that their speeches, in terms of linguistic diversity (unique vocabulary), are quite comparable.
+
+This could suggest that both candidates structured their responses similarly in terms of complexity and vocabulary, using a comparable amount of distinct words to convey their messages. The focus of their speeches likely revolved more around content and themes rather than significantly differing linguistic styles.
+
+```{r}
 trump_sentiment_speech <- trump_tidy_speech %>%
-  inner_join(get_sentiments("bing")) %>%
+  inner_join(get_sentiments("bing"), by="word") %>%
   count(sentiment, sort = TRUE) %>% 
   mutate(speaker="Trump")
 
 harris_sentiment_speech <- harris_tidy_speech %>%
-  inner_join(get_sentiments("bing")) %>%
+  inner_join(get_sentiments("bing"), by="word") %>%
   count(sentiment, sort = TRUE) %>% 
   mutate(speaker="Harris")
 
@@ -131,18 +218,40 @@ sentiment_analysis <- rbind(trump_sentiment_speech, harris_sentiment_speech)
 
 ggplot(data=sentiment_analysis)+
   geom_bar(aes(x=n, y=speaker, group=sentiment, fill=sentiment), stat='identity', position='dodge')+
-  scale_fill_manual(values=c("red", "blue"))
+  scale_fill_manual(values=c("#FF4500", "#1E90FF"))+
+  theme_minimal()+
+  labs(y="Speaker", x="Word Count by Sentiment", fill="", title="Sentiment of Spoken Words: Trump vs Harris")
 
 ```
 
+This plot presents the sentiment analysis of spoken words from Trump and Harris, comparing the counts of **positive** and **negative** words used by each speaker.
+
+### Comparison:
+1. **Trump's Sentiment**:
+   - Trump has used a nearly equal number of positive and negative words.
+   - There’s a slight edge in the negative sentiment, as the red bar (negative sentiment) is slightly longer than the blue bar (positive sentiment). This suggests that Trump's speech contained a balanced mix of both positive and negative sentiment, with a marginal tilt toward negative language.
+
+2. **Harris' Sentiment**:
+   - Harris shows a different pattern, with significantly more positive words (blue) than negative ones (red).
+   - The positive sentiment bar is much longer than the negative sentiment bar, indicating that Harris’s speech was more optimistic or focused on positive messaging.
+
+### Observations:
+- **Tone and Strategy**: The difference in sentiment between Trump and Harris could reflect their rhetorical strategies. Trump’s use of more balanced sentiment (with a slight lean toward negativity) might suggest a more critical or combative tone, possibly focusing on challenges or opponents. Harris, on the other hand, seems to have adopted a more positive tone, likely focusing on hope, solutions, or unity.
+  
+- **Impact on Audience**: The higher proportion of negative words in Trump’s speech might resonate with individuals concerned about issues and seeking change, while Harris’s positive tone could appeal to those looking for optimism and constructive dialogue.
+
+- **Context of Speeches**: If the speeches were given in the context of a debate or campaign, this sentiment analysis could reflect the nature of their messages: Trump focusing more on problems or critiques, and Harris potentially emphasizing unity, progress, and solutions.
+
+This sentiment breakdown highlights the contrast in how each speaker communicated their message, with Harris leaning more toward a positive appeal and Trump taking a more balanced but slightly negative approach.
+
 ```{r}
 trump_afinn_sentiment <- trump_tidy_speech %>%
-  inner_join(get_sentiments("afinn")) %>%
+  inner_join(get_sentiments("afinn"), by="word") %>%
   summarise(sentiment_score = sum(value)) %>% 
   mutate(speaker="Trump")
 
 harris_afinn_sentiment <- harris_tidy_speech %>%
-  inner_join(get_sentiments("afinn")) %>%
+  inner_join(get_sentiments("afinn"), by="word") %>%
   summarise(sentiment_score = sum(value)) %>% 
   mutate(speaker="Harris")
 
@@ -150,8 +259,30 @@ sentiment_afinn <- rbind(trump_afinn_sentiment, harris_afinn_sentiment)
 
 ggplot(data=sentiment_afinn)+
   geom_bar(aes(x=sentiment_score, y=speaker, fill=speaker), stat='identity')+
-  scale_fill_manual(values=c("blue", "red"))
+  scale_fill_manual(values=c("#1E90FF", "#FF4500"))+
+  theme_minimal()+
+  labs(y="Speaker", x="Overall Sentiment Score", fill="", title="Overal Sentiment of Spoken Words: Trump vs Harris")
 ```
+
+This plot shows the overall sentiment scores for Trump and Harris based on the **AFINN** sentiment analysis. AFINN assigns positive and negative values to words based on their emotional tone, and the overall score is the sum of those values across the entire text.
+
+### Comparison:
+1. **Trump's Sentiment**:
+   - The negative sentiment score for Trump (represented in red) is significantly lower than zero, indicating that the overall tone of his speech was strongly negative. This suggests that Trump's rhetoric focused more on criticisms, problems, or negative framing.
+   
+2. **Harris' Sentiment**:
+   - On the other hand, Harris (in blue) has a positive sentiment score, indicating that her speech had a generally positive tone. This suggests she focused more on hope, solutions, or optimism, delivering her message in a way that resonated with positive language.
+
+### Observations:
+- **Contrast in Tone**: This stark contrast between Trump and Harris highlights a major difference in their rhetorical approaches. Trump's more negative sentiment might align with a strategy focused on pointing out issues, dangers, or challenges. In contrast, Harris appears to have employed more optimistic language, possibly focusing on solutions or unity.
+  
+- **Impact on Audience**: The difference in sentiment could influence audience perception. Negative language often drives urgency and emphasizes problems, potentially resonating with voters who feel discontent. Positive language, meanwhile, may appeal to those looking for hope, change, or constructive discourse.
+
+- **Context of Speeches**: The negative sentiment for Trump might also suggest that his speech was more confrontational or critical, possibly aimed at highlighting issues within the current political or social landscape. Harris’s positive sentiment suggests her speech may have been more forward-looking or focused on progress and unification.
+
+This analysis reveals clear differences in emotional tone between the two speakers, which likely reflect their messaging strategies during their speeches.
+
+## Trump Speech Word Cloud
 
 ```{r}
 wordcloud(words = trump_word_count_no_stop$word, 
@@ -159,52 +290,251 @@ wordcloud(words = trump_word_count_no_stop$word,
           max.words = 100)
 ```
 
+## Harris Speech Word Cloud
+
 ```{r}
 wordcloud(words = harris_word_count_no_stop$word, 
           freq = harris_word_count_no_stop$n, 
           max.words = 100)
 ```
+## Trump Bigrams
 
 ```{r}
 trump_speech_no_stop <- trump_tidy_speech %>%
-  anti_join(stop_words) %>% 
+  anti_join(stop_words, by="word") %>% 
   filter(!grepl("^\\d+$", word), !grepl(",", word)) %>% 
   select(word) %>% 
   paste(., collapse="")
 
-tibble(line=1, text=trump_speech_no_stop) %>%
+flextable(tibble(line=1, text=trump_speech_no_stop) %>%
   unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
   count(bigram, sort = TRUE) %>% 
-  mutate(frequency = n/sum(n))
+  mutate(frequency = n/sum(n)) %>% 
+  head(10) %>% 
+  rename(Bigram=bigram, Count = n, Frequency=frequency))
 ```
 
+### Trump's Most Frequent Bigrams:
+
+The frequent **bigrams** (pairs of consecutive words) used by Trump provide insights into the key themes and topics in his speech. Here’s a breakdown of what these bigrams suggest:
+
+1. **"Millions people" (Count = 9, Frequency = 0.0043)**:
+   - The mention of "millions people" likely refers to large-scale groups of people, possibly framing his message around the impact on a broad population. This emphasizes the scale of his statements, suggesting a focus on issues affecting large numbers of people, such as economic policies or healthcare.
+
+2. **"Billions dollars" (Count = 7, Frequency = 0.0034)**:
+   - The phrase "billions dollars" highlights a focus on large economic figures, likely referencing discussions around the economy, government spending, or financial policies. This indicates that Trump is emphasizing significant financial concerns and the impact of large-scale investments or losses.
+
+3. **"History country" (Count = 7, Frequency = 0.0034)**:
+   - "History country" suggests a theme of patriotism or discussions about the past and legacy of the nation. This could imply that Trump is making appeals to national pride or reflecting on pivotal moments in American history to bolster his message.
+
+4. **"Destroying country" (Count = 6, Frequency = 0.0029)**:
+   - This bigram points toward a negative and potentially alarmist tone, where Trump may be addressing perceived threats or challenges to the country. This rhetoric could be aimed at portraying the country as being under attack or at risk, possibly from political opponents or policies.
+
+5. **"People country" (Count = 6, Frequency = 0.0029)**:
+   - "People country" suggests a direct appeal to the population and the nation as a whole. This phrase emphasizes a populist message, where Trump may be speaking about the relationship between the citizens and the country's future.
+
+6. **"Student loans" (Count = 6, Frequency = 0.0029)**:
+   - The mention of "student loans" indicates a focus on financial policies related to education. This could be part of discussions around student debt relief or criticisms of current policies affecting students and their financial burdens.
+
+7. **"Million votes" (Count = 4, Frequency = 0.0019)**:
+   - "Million votes" likely relates to discussions about elections, voter turnout, or the results of past elections. It suggests that Trump is emphasizing the significance of voter participation or discussing concerns about election integrity or outcomes.
+
+8. **"Millions millions" (Count = 4, Frequency = 0.0019)**:
+   - The repetition of "millions millions" could indicate emphasis on scale, particularly in discussions about large numbers, possibly related to economic figures, voter counts, or population sizes. This repetition might serve to amplify the magnitude of the issues discussed.
+
+9. **"Nancy Pelosi" (Count = 4, Frequency = 0.0019)**:
+   - The mention of "Nancy Pelosi" reflects a focus on political opponents or figures in the opposing party. This bigram suggests that Trump is addressing or criticizing Pelosi, likely as part of his broader political rhetoric.
+
+10. **"Ninth month" (Count = 4, Frequency = 0.0019)**:
+   - "Ninth month" could be referring to a specific event or timeframe, potentially linked to significant political or policy discussions. This might relate to legislative timelines, political milestones, or key moments in a particular narrative.
+
+### Overall Themes:
+- **Economic Focus**: Bigrams like "billions dollars," "millions people," and "student loans" emphasize Trump's focus on large-scale economic matters and financial policies. He seems to concentrate on issues with wide-reaching impacts on the population.
+  
+- **Patriotism and Threats**: Phrases like "history country" and "destroying country" suggest Trump is intertwining national pride with concerns about perceived threats to the country, which is common in populist rhetoric.
+
+- **Political Opponents**: The mention of "Nancy Pelosi" reflects the adversarial tone of Trump's speech, where he is directly addressing or criticizing key figures from the opposing party.
+
+These frequent bigrams show that Trump's rhetoric is centered around economic magnitude, patriotism, and potential threats to the country, as well as critiques of political opponents.
+
+
+## Harris Bigrams
 
 ```{r}
 harris_speech_no_stop <- harris_tidy_speech %>%
-  anti_join(stop_words) %>% 
+  anti_join(stop_words, by="word") %>% 
   filter(!grepl("^\\d+$", word), !grepl(",", word)) %>% 
   select(word) %>% 
   paste(., collapse="")
 
-tibble(line=1, text=harris_speech_no_stop) %>%
+flextable(tibble(line=1, text=harris_speech_no_stop) %>%
   unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
   count(bigram, sort = TRUE) %>% 
-  mutate(frequency = n/sum(n))
+  mutate(frequency = n/sum(n)) %>% 
+  head(10) %>% 
+  rename(Bigram=bigram, Count = n, Frequency=frequency))
 ```
 
-```{r}
-tibble(line=1, text=trump_speech_no_stop) %>%
-  unnest_tokens(bigram, text, token = "ngrams", n = 3) %>%
-  count(bigram, sort = TRUE) %>% 
-  mutate(frequency = n/sum(n))
-```
+### Harris' Most Frequent Bigrams:
+
+The frequent **bigrams** used by Harris provide a window into the primary focus areas and themes of her speech. Let’s break down the top bigrams:
+
+1. **"Donald Trump" (Count = 26, Frequency = 0.0131)**:
+   - The most frequent bigram in Harris's speech is "Donald Trump," which suggests that a significant portion of her speech was dedicated to addressing or critiquing the former president. This could indicate that she focused on contrasting her policies or vision with Trump’s actions or leadership, making him a central point of discussion.
+
+2. **"American people" (Count = 18, Frequency = 0.0091)**:
+   - The bigram "American people" shows an emphasis on the electorate and citizens, likely highlighting her focus on appealing to voters or discussing policies directly affecting the population. This suggests a populist, inclusive message aimed at addressing concerns of the broader public.
+
+3. **"Vice president" (Count = 11, Frequency = 0.0055)**:
+   - "Vice president" refers to either Harris herself or the role in general. This reflects her focus on leadership and her position, possibly emphasizing her qualifications or critiquing the actions of the former vice president (likely referring to Mike Pence, during the Trump administration).
+
+4. **"President United" (Count = 8, Frequency = 0.0040)**:
+   - This bigram is likely a shorthand for “President of the United States” or a reference to uniting the country under a president’s leadership. It suggests Harris is emphasizing the importance of leadership in uniting the country, potentially framing her vision of the presidency or critiquing how Trump divided the nation.
+
+5. **"Affordable care" (Count = 7, Frequency = 0.0035)**:
+   - The term "affordable care" points to discussions about healthcare, particularly the Affordable Care Act (ACA), a signature piece of Democratic legislation. Harris is likely focusing on healthcare reform or defending the ACA from attacks or attempts to repeal it.
+
+6. **"Care act" (Count = 7, Frequency = 0.0035)**:
+   - Similar to "affordable care," this bigram references the Affordable Care Act (often known as Obamacare). This confirms that healthcare policy is a significant theme in Harris’s speech.
+
+7. **"Donald Trump’s" (Count = 6, Frequency = 0.0030)**:
+   - The possessive form "Donald Trump’s" suggests that Harris is critiquing specific actions or policies enacted by Trump, whether related to healthcare, the economy, or national security. This further supports the theme of contrasting her vision with Trump’s policies.
+
+8. **"Health care" (Count = 5, Frequency = 0.0025)**:
+   - "Health care" indicates a continued focus on healthcare reform, likely discussing policies that affect healthcare access, costs, and improvements. It reinforces that healthcare is a top priority in Harris’s messaging.
+
+9. **"Middle class" (Count = 5, Frequency = 0.0025)**:
+   - The mention of the "middle class" points to economic discussions, where Harris is likely emphasizing her policies aimed at supporting or uplifting the middle class. This suggests a focus on economic equality and addressing the needs of a key voting demographic.
+
+10. **"National security" (Count = 5, Frequency = 0.0025)**:
+   - The bigram "national security" indicates that Harris touched on issues related to the safety and security of the United States. This could range from discussions on foreign policy, defense, or even domestic security issues.
+
+### Overall Themes:
+- **Focus on Donald Trump**: The frequent use of "Donald Trump" and "Donald Trump’s" highlights how central Trump is to Harris’s speech. Her speech seems to focus heavily on contrasting her policies with Trump’s actions, particularly criticizing his leadership and decisions.
+  
+- **Healthcare**: Phrases like "affordable care," "care act," and "health care" indicate that healthcare was a significant focus in her speech, likely defending the Affordable Care Act or advocating for healthcare reforms.
+
+- **American People and Middle Class**: Harris frequently refers to "American people" and "middle class," suggesting that her speech is focused on economic policies and the well-being of the general populace, likely framed as a fight for equality, opportunity, and economic security.
+
+- **Leadership and Security**: The mention of "vice president," "president united," and "national security" points to discussions of leadership and the importance of uniting the country while ensuring national security.
+
+In summary, Harris's speech focused on criticizing Trump’s leadership, defending and promoting healthcare reforms, and addressing economic concerns related to the middle class. The focus on Trump, the Affordable Care Act, and national security suggests she is positioning herself as a strong alternative to the previous administration while addressing key voter concerns.
+
+## Trump Trigrams
 
 ```{r}
-tibble(line=1, text=harris_speech_no_stop) %>%
-  unnest_tokens(bigram, text, token = "ngrams", n = 3) %>%
-  count(bigram, sort = TRUE) %>% 
-  mutate(frequency = n/sum(n))
+flextable(tibble(line=1, text=trump_speech_no_stop) %>%
+  unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
+  count(trigram, sort = TRUE) %>% 
+  mutate(frequency = n/sum(n)) %>% 
+  head(10) %>% 
+  rename(Trigram=trigram, Count = n, Frequency=frequency))
 ```
+
+### Trump's Most Frequent Trigrams:
+
+The **trigrams** (three-word phrases) used by Trump provide even more nuanced insights into his speech and messaging, emphasizing key themes and framing strategies. Here's what each trigram suggests:
+
+1. **"Hundreds billions dollars" (Count = 3, Frequency = 0.0014)**:
+   - This phrase emphasizes large economic figures, indicating that Trump is discussing significant sums of money, likely in the context of government spending, trade deals, or economic policy. The phrase suggests a focus on large-scale financial matters, possibly framing them as victories or challenges.
+
+2. **"Millions millions people" (Count = 3, Frequency = 0.0014)**:
+   - The repetition of "millions" stresses the scale of the population being discussed. This could refer to issues such as immigration, voting, or public policy affecting large numbers of people. The repetition adds emphasis, likely aiming to make a point about the magnitude of the issue.
+
+3. **"People pouring country" (Count = 3, Frequency = 0.0014)**:
+   - This trigram suggests a focus on immigration, where Trump is discussing people entering the U.S., possibly framing it as an influx or surge. The phrase "pouring" has a negative connotation, indicating a sense of urgency or a problem related to immigration policy.
+
+4. **"President history country" (Count = 3, Frequency = 0.0014)**:
+   - This likely refers to Trump positioning himself or another president within the broader context of the country’s history. It suggests a theme of legacy and leadership, where Trump might be drawing comparisons between his administration and those in the past.
+
+5. **"Abortion ninth month" (Count = 2, Frequency = 0.00096)**:
+   - This trigram focuses on the issue of late-term abortion, a controversial topic often used in political debates. Trump may be addressing or criticizing policies related to abortion, specifically late-term procedures, appealing to conservative voters who oppose such practices.
+
+6. **"Afraid North Korea" (Count = 2, Frequency = 0.00096)**:
+   - This trigram indicates a discussion of international relations, particularly with North Korea. The phrase likely reflects Trump’s stance on North Korea’s leadership or nuclear threat, perhaps contrasting his approach to the perceived fear or inaction of other administrations.
+
+7. **"Allowing millions people" (Count = 2, Frequency = 0.00096)**:
+   - This trigram seems to relate to discussions of policy decisions involving large populations. It could again refer to immigration or voting, suggesting that Trump is criticizing policies that allow large groups of people to do something that he opposes.
+
+8. **"Biggest pipeline world" (Count = 2, Frequency = 0.00096)**:
+   - This phrase points to discussions about infrastructure, energy, or trade. Trump may be referring to an energy project, framing it as a major achievement or criticizing the handling of such projects by previous administrations.
+
+9. **"Billions dollars China" (Count = 2, Frequency = 0.00096)**:
+   - This trigram signals discussions about trade or financial relations with China. Trump often focused on economic deals with China during his presidency, and this phrase likely highlights concerns about trade deficits or payments involving China.
+
+10. **"Close student loans" (Count = 2, Frequency = 0.00096)**:
+   - This phrase suggests Trump is addressing the issue of student loans, possibly talking about closing or reducing them. This might reflect his stance on financial aid or efforts to reform the student loan system.
+
+### Overall Themes:
+- **Economic Focus**: Phrases like "hundreds billions dollars" and "billions dollars China" indicate a significant emphasis on large-scale economic figures, trade, and financial dealings, particularly with China.
+  
+- **Immigration**: Trigrams such as "people pouring country" and "allowing millions people" highlight Trump's focus on immigration and his framing of it as a major issue. The use of words like "pouring" suggests a critical perspective on current immigration policies.
+
+- **Leadership and Legacy**: The trigram "president history country" suggests that Trump is concerned with how his presidency will be viewed in a historical context, potentially comparing himself to past leaders.
+
+- **Controversial Issues**: Topics such as "abortion ninth month" and "afraid North Korea" show that Trump addressed sensitive and high-stakes topics, likely aiming to appeal to conservative voters and bolster his foreign policy credentials.
+
+- **Infrastructure and Policy**: Phrases like "biggest pipeline world" and "close student loans" suggest Trump is discussing tangible policy issues, such as energy infrastructure and student loans, possibly positioning his actions or future plans as solutions to these issues.
+
+Overall, Trump’s frequent trigrams point to a speech that mixes economic concerns, immigration policy, and a focus on his presidency’s place in history, with discussions on controversial topics like abortion and international relations. This aligns with his rhetorical style, which often combines grand-scale figures with strong opinions on national security, immigration, and economic matters.
+
+## Harris Trigrams
+
+```{r}
+flextable(tibble(line=1, text=harris_speech_no_stop) %>%
+  unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
+  count(trigram, sort = TRUE) %>% 
+  mutate(frequency = n/sum(n)) %>% 
+  head(10) %>% 
+  rename(Trigram=trigram, Count = n, Frequency=frequency))
+```
+
+### Harris' Most Frequent Trigrams:
+
+The **trigrams** used by Harris shed light on the specific issues and messaging she focused on in her speech. These trigrams suggest that healthcare, critiques of Donald Trump, and women's rights were central themes. Here's a breakdown of each:
+
+1. **"Affordable care act" (Count = 7, Frequency = 0.00353)**:
+   - This is the most frequent trigram, highlighting that the **Affordable Care Act (ACA)** is a central issue in Harris's speech. This likely indicates that Harris is defending the ACA, emphasizing its importance in providing healthcare protections and coverage for Americans. The ACA is a key piece of Democratic legislation, and Harris appears to be reinforcing its significance in her platform.
+
+2. **"Donald trump left" (Count = 4, Frequency = 0.00202)**:
+   - This trigram suggests that Harris is criticizing the state in which Trump left certain issues or the country after his presidency. The focus here is on contrasting Trump's legacy with her platform or the direction she wants to take moving forward.
+
+3. **"Understand donald trump" (Count = 4, Frequency = 0.00202)**:
+   - Harris is likely framing Trump’s actions or policies in a critical light, helping the audience “understand” the consequences of his leadership. This could be part of her effort to highlight how Trump’s presidency has negatively impacted certain areas like healthcare, women’s rights, or the economy.
+
+4. **"Donald trump president" (Count = 3, Frequency = 0.00151)**:
+   - Similar to the above, this trigram reflects Harris's focus on **Donald Trump’s presidency**. She may be discussing the broader implications of his time in office, critiquing his leadership, or drawing contrasts between her vision and his actions as president.
+
+5. **"Protections roe wade" (Count = 3, Frequency = 0.00151)**:
+   - This trigram refers to **Roe v. Wade**, the landmark Supreme Court decision that legalized abortion in the U.S. Harris is likely emphasizing her stance on protecting abortion rights and framing her platform as a defender of women’s reproductive rights, which is a critical issue for many voters, particularly in the context of recent political efforts to challenge or overturn these protections.
+
+6. **"Trump left worst" (Count = 3, Frequency = 0.00151)**:
+   - This trigram indicates that Harris is positioning Trump as having left the country or certain issues in a worse state than when he took office. The phrase suggests a critique of Trump’s legacy, perhaps focusing on areas like healthcare, the economy, or civil rights.
+
+7. **"Abortion ban understand" (Count = 2, Frequency = 0.00101)**:
+   - Harris is likely discussing abortion bans, helping the audience “understand” the implications of such policies. This suggests that reproductive rights and opposition to abortion bans are key components of her speech, aligning with broader Democratic positions.
+
+8. **"Answer question veto" (Count = 2, Frequency = 0.00101)**:
+   - This trigram suggests a specific instance where Harris may be addressing a policy question or discussing the potential for a veto, possibly in relation to legislative efforts or executive powers.
+
+9. **"Ban understand project" (Count = 2, Frequency = 0.00101)**:
+   - This trigram could be referencing a specific ban (perhaps related to abortion or another policy) and helping the audience understand its consequences. The use of the word “project” might imply a broader issue or a forward-looking statement about policy implications.
+
+10. **"Carry pregnancy term" (Count = 2, Frequency = 0.00101)**:
+    - This trigram refers to **pregnancy and reproductive rights**, likely discussing the implications of restricting abortion access and forcing women to carry pregnancies to term. This aligns with Harris's broader stance on defending Roe v. Wade and opposing restrictive abortion laws.
+
+### Overall Themes:
+- **Healthcare Focus**: The prominence of the "affordable care act" trigram suggests that healthcare is a significant part of Harris's messaging. She is likely defending the ACA and highlighting its role in providing protections for millions of Americans.
+
+- **Critique of Donald Trump**: Trigrams like "donald trump left," "understand donald trump," and "trump left worst" emphasize Harris’s focus on **critiquing Trump’s presidency**. She is positioning Trump’s leadership as harmful, particularly regarding healthcare and other key policies.
+
+- **Reproductive Rights**: Trigrams such as "protections roe wade," "abortion ban understand," and "carry pregnancy term" show that **women’s reproductive rights** are a major theme in Harris's speech. She is likely discussing the importance of maintaining protections for women under Roe v. Wade and opposing efforts to restrict access to abortion.
+
+- **Policy and Leadership**: Harris also addresses executive actions and legislative matters, as suggested by "answer question veto" and "ban understand project." This reflects her focus on leadership, decision-making, and the implications of legislative bans.
+
+### Summary:
+Harris's trigrams reveal a speech that heavily focuses on **healthcare, critiques of Trump’s presidency, and women’s reproductive rights**. Her frequent references to the Affordable Care Act and Roe v. Wade indicate her dedication to protecting these key pieces of legislation. Additionally, her repeated mention of Trump suggests she is contrasting her platform with his policies, framing her vision as a corrective to the challenges and failures of his administration.
+
 # Reading Level
 
 Flesch-Kincaid is more focused on sentence length and word length (syllables per word), and it tends to favor readability for a broader range of texts, especially shorter sentences and simpler words.
@@ -224,4 +554,31 @@ readability_scores <- rbind(trump_readability_scores, harris_readability_scores)
 
 flextable(readability_scores)
 ```
+### Reading Level of Trump and Harris' Speeches:
 
+The **Flesch-Kincaid** and **SMOG** scores provide insight into the complexity and readability of the speeches delivered by Trump and Harris. These scores help determine the education level required to comprehend the text fully.
+
+#### 1. **Flesch-Kincaid Grade Level**:
+- **Trump: 4.50**
+  - This score suggests that Trump’s speech is written at approximately a **4th-5th grade reading level**, meaning it can be easily understood by individuals with a 4th or 5th-grade education. A lower Flesch-Kincaid score generally indicates simpler sentence structures and vocabulary, making the content more accessible to a wider audience.
+  
+- **Harris: 8.36**
+  - Harris's speech scores significantly higher, at approximately an **8th-grade reading level**. This indicates more complex sentence structures and vocabulary, requiring a slightly higher educational background to fully grasp the nuances of her speech.
+
+#### 2. **SMOG Index**:
+- **Trump: 8.12**
+  - The **SMOG (Simple Measure of Gobbledygook)** score is used to estimate the years of education a person needs to comprehend a piece of writing. Trump’s score suggests that a person would need around **8 years of education** (middle school level) to fully understand his speech.
+  
+- **Harris: 11.47**
+  - Harris’s SMOG score is higher, suggesting that her speech requires about **11-12 years of education** (high school level) for full comprehension. This means her speech uses more complex words and structures.
+
+### Interpretation:
+- **Trump's Speech**: With a lower Flesch-Kincaid and SMOG score, Trump’s speech is simpler in terms of language and structure. This aligns with his often direct, accessible style of communication, which may be intentional to reach a broad audience, including those with varying education levels. His language tends to use shorter sentences and simpler vocabulary, which may help in delivering his message more clearly and directly to the general public.
+  
+- **Harris's Speech**: Harris’s higher reading levels indicate a more sophisticated style, using more advanced vocabulary and complex sentence structures. This could reflect a more formal tone or a focus on policy details that require a deeper understanding. Her speech may appeal to an audience with a higher education level, and her use of more intricate language could convey depth or seriousness about the issues she’s discussing.
+
+### Summary:
+- **Trump's speech** is designed for broader accessibility, using simpler language and sentence structures, which may help him connect with a wider audience.
+- **Harris's speech** is more complex, likely reflecting a more detailed and nuanced discussion of policy and leadership, appealing to those with a higher level of education.
+
+These differences in reading levels highlight how both speakers adjust their communication styles depending on their audience and the complexity of the topics they discuss.
